@@ -1,7 +1,12 @@
-# RINGS
+# rings
 
 This is the official repository for our ICML paper:
+
 **[No Metric to Rule Them All: Toward Principled Evaluations of Graph-Learning Datasets](https://arxiv.org/abs/2502.02379)**
+
+
+which introduces a perturbation framework for attributed graphs, designed to facilitate better evalutions of GL Benchmarks using first principles. 
+
 
 ---
 
