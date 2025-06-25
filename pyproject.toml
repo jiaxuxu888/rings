@@ -12,3 +12,8 @@ dependencies = [
     "torch-geometric>=2.6.1",
     "torchvision>=0.22.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
