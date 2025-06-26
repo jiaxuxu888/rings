@@ -57,7 +57,7 @@ Clone the repository and install dependencies using `uv`:
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/rings.git
+git clone https://github.com/aidos-lab/rings.git
 cd rings
 
 # Install dependencies
