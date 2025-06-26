@@ -147,10 +147,10 @@ def is_connected(data):
         bool: True if the graph is connected, False otherwise.
             Empty graphs (0 nodes) are (vacuously) considered connected by convention.
     """
-    # Handle empty graph case (no nodes)
     if data.num_nodes == 0:
         # Empty graphs are connected by convention
         return True
 
-    G = to_networkx(data).to_undirected()
+    G = to_networkx(data, to_undirected=True)
+
     return nx.is_connected(G)

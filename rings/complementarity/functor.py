@@ -1,4 +1,4 @@
-"""Core module defining the main complementarity functor and comparators."""
+"""Core Functor for facilitating Mode Complementarity computation."""
 
 from rings.complementarity.metrics import lift_attributes
 from rings.complementarity.metrics import lift_graph
@@ -30,15 +30,23 @@ class ComplementarityFunctor(torch.nn.Module):
         self.feature_metric = feature_metric
         self.graph_metric = graph_metric
 
-        self.use_edge_information = False
-
-        # Set attribute to use for the metric space conversion. We
-        # assume that said information is available.
-        if self.use_edge_information:
-            self.kwargs["weight"] = "edge_attr"
-
+        self._use_edge_information = False
         self.kwargs = kwargs
+
+        # Set up the comparator
         self.comparator = comparator(n_jobs=n_jobs, **self.kwargs)
+
+    @property
+    def use_edge_information(self):
+        return self._use_edge_information
+
+    @use_edge_information.setter
+    def use_edge_information(self, value):
+        self._use_edge_information = value
+        if value:
+            self.kwargs["weight"] = "edge_attr"
+        elif "weight" in self.kwargs and self.kwargs["weight"] == "edge_attr":
+            del self.kwargs["weight"]
 
     def forward(self, batch):
         """Handle a batch of graphs in `pytorch-geometric` format."""
@@ -199,7 +207,15 @@ class ComplementarityFunctor(torch.nn.Module):
         ]
 
         # Compute the weighted average score
-        weighted_average_score = np.average(scores, weights=sizes)
+        if sum(sizes) > 0:
+            weighted_average_score = np.average(scores, weights=sizes)
+        else:
+            # If sizes sum to zero, use simple average or return NaN
+            warnings.warn("Weights sum to zero, using simple average instead")
+            if scores:
+                weighted_average_score = np.mean(scores)
+            else:
+                weighted_average_score = np.nan
 
         return_dict = {
             "complementarity": weighted_average_score,

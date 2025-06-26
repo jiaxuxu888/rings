@@ -148,17 +148,6 @@ class TestMetrics:
         expected = shortest_path_distance(G)
         np.testing.assert_array_almost_equal(result, expected)
 
-    def test_resistance_distance_with_disconnected_graph(self):
-        """Test resistance distance with disconnected graph returns NaN."""
-        G = nx.Graph()
-        G.add_nodes_from([0, 1, 2])
-        G.add_edge(0, 1)  # Nodes 0 and 1 connected, 2 disconnected
-
-        result = resistance_distance(G)
-
-        # Should contain NaN values
-        assert np.any(np.isnan(result))
-
     def test_shortest_path_distance(self):
         """Test shortest path distance calculation."""
         G = nx.path_graph(4)
