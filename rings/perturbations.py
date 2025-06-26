@@ -1,4 +1,4 @@
-"""Transformations for `pytorch-geometric` and data pre-processing."""
+"""Mode Perturbations, i.e Graph Transformations, of the RINGS Framework."""
 
 import torch
 from torch_geometric.transforms import BaseTransform
