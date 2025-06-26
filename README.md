@@ -103,21 +103,21 @@ The `ComplementarityFunctor` measures the alignment between node features and gr
 
 The repository includes an example script that demonstrates how to use RINGS to analyze graph datasets:
 
-### Complementarity Analysis
+### Mode Complementarity
 
 ```bash
 # Run the example on the MUTAG dataset with original (unperturbed) graphs
-python examples/complementarity.py --dataset MUTAG --perturbation original
+python -m examples.complementarity --dataset MUTAG --perturbation original
 
 # Try different perturbations
-python examples/complementarity.py --dataset MUTAG --perturbation random-features
-python examples/complementarity.py --dataset MUTAG --perturbation empty-graph
+python -m examples.complementarity --dataset MUTAG --perturbation random-features
+python -m examples.complementarity --dataset MUTAG --perturbation empty-graph
 
 # Analyze a different TU dataset
-python examples/complementarity.py --dataset ENZYMES --perturbation original
+python -m examples.complementarity --dataset ENZYMES --perturbation original
 
 # Get help and see all available options
-python examples/complementarity.py --help
+python -m examples.complementarity --help
 ```
 
 The script will output complementarity statistics that measure how well node features align with graph structure in the dataset.
