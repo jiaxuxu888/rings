@@ -11,7 +11,7 @@ which introduces **RINGS**: a perturbation framework for attributed graphs, desi
 ## 🚧 Repository Status
 
 This repository is **under active development**.
-We've made it public early to invite **feedback**, **discussion**, and **transparency** as we transition from research prototypes to a stable, user-friendly package.
+We've made it public early to invite feedback, discussion, and **transparency** as we transition from research prototypes to a stable, user-friendly package.
 
 In the coming weeks, we’ll be releasing updates, architectural notes, and implementation details via a series of pull requests. You're welcome to follow along, open issues, or suggest improvements!
 
