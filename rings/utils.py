@@ -100,14 +100,6 @@ class Shuffle(BaseTransform):
         self_loop_mask = source_nodes == target_nodes
         num_self_loops = self_loop_mask.sum().item()
         if num_self_loops > 0:
-            # Generate random edges to replace self-loops
-            random_source_nodes = torch.randint(
-                0,
-                num_nodes,
-                (num_self_loops,),
-                device=source_nodes.device,
-                generator=self.generator,
-            )
             random_target_nodes = torch.randint(
                 0,
                 num_nodes,
