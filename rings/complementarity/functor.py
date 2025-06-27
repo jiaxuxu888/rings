@@ -4,6 +4,7 @@ from rings.complementarity.metrics import lift_attributes
 from rings.complementarity.metrics import lift_graph
 from rings.complementarity.utils import maybe_normalize_diameter
 
+
 from torch_geometric.utils import to_networkx
 
 import numpy as np
@@ -16,6 +17,39 @@ import warnings
 
 
 class ComplementarityFunctor(torch.nn.Module):
+    """A class for computing the mode complementarity of graphs.
+    Parameters
+    ----------
+    torch.nn.Module : torch.nn.Module
+        A PyTorch module containing the graphs for which to compute mode complementarity.
+    Attributes
+    ----------
+    feature_metric: str
+        The metric to be used for lifting node features into a metric space, e.g. "euclidean". See `metrics.py`.
+    graph_metric: str
+        The metric to be used for lifting the graph into a metric space, e.g. "shortest_path_distance". See `metrics.py`.
+    n_jobs: int
+        The number of jobs to run in parallel for lifting the metric spaces.
+    _use_edge_information : bool
+        Whether to use edge information when lifting the graph into a metric space. Default is False. Change value using setter function.
+    comparator : object
+        An instance of a comparator class (e.g. MatrixNormComparator) that will be used to compare the lifted metric spaces.
+    **kwargs : dict
+        Keyword arguments to specify the norm to be used when initializing the comparator. Supported norms are:
+        - "L11" (default)
+        - "frobenius"
+    Methods
+    -------
+    use_edge_information(value: bool)
+        Setter function to toggle the use of edge information when lifting the graph into a metric space.
+    forward(batch: torch_geometric.data.Batch)
+        Compute mode complementarity for a batch of graphs in `pytorch-geometric` format, parallelizing based on n_jobs attribute.
+    _forward(data: torch_geometric.data.Data)
+        Compute mode complementarity for a single graph in `pytorch-geometric` format.
+    _complementarity(G: networkx.Graph, return_metric_spaces: bool = False)
+        Calculate the mode complementarity of a single graph.
+    """
+
     def __init__(
         self,
         feature_metric,
@@ -24,6 +58,22 @@ class ComplementarityFunctor(torch.nn.Module):
         n_jobs,
         **kwargs,
     ):
+        """Initialize the ComplementarityFunctor.
+        Parameters
+        ----------
+        feature_metric: str
+            The metric to be used for lifting node features into a metric space, e.g. "euclidean". See `metrics.py`.
+        graph_metric: str
+            The metric to be used for lifting the graph into a metric space, e.g. "shortest_path_distance". See `metrics.py`.
+        comparator: class
+            The comparator class to be used for comparing the lifted metric spaces, see `comparator.py`.
+        n_jobs: int
+            The number of jobs to run in parallel for lifting the metric spaces.
+        **kwargs : dict
+            Keyword arguments to specify the norm to be used when initializing the comparator. Supported norms are:
+            - "L11" (default)
+            - "frobenius"
+        """
         torch.nn.Module.__init__(self)
 
         self.n_jobs = n_jobs
@@ -49,22 +99,29 @@ class ComplementarityFunctor(torch.nn.Module):
             del self.kwargs["weight"]
 
     def forward(self, batch):
-        """Handle a batch of graphs in `pytorch-geometric` format."""
-        batch_size = len(batch)
+        """Compute mode complementarity for a batch of graphs in `pytorch-geometric` format, parallelizing based on n_jobs attribute.
+        Returns
+        -------
+        dict
+            A dictionary containing the complementarity scores for each graph in the batch, along with any additional optional information (dictated by comparator function).
+        """
 
+        # Parallelize the forward pass for each graph in the batch (i.e. run _forward() on each graph in the batch).
         outputs = joblib.Parallel(n_jobs=self.n_jobs)(
             joblib.delayed(self._forward)(batch[i]) for i in range(batch_size)
         )
 
-        # This attribute is guaranteed to be available in all functors,
-        # and we can always convert it to a tensor.
+        # Extracts "complementarity" from each dictionary in outputs and puts them all into a tensor.
+        # This attribute is guaranteed to be available in all functors, and we can always convert it to a tensor.
         complementarity_scores = torch.as_tensor(
             list(map(operator.itemgetter("complementarity"), outputs)),
             dtype=torch.float,
         )
 
+        # Adding tensor of complementarity scores to the result dictionary.
         result = {"complementarity": complementarity_scores}
 
+        # Storing values that are not "complementarity" in the result dictionary.
         if len(outputs) > 0:
             other_keys = list(outputs[0].keys())
             other_keys.remove("complementarity")
@@ -76,7 +133,7 @@ class ComplementarityFunctor(torch.nn.Module):
         return result
 
     def _forward(self, data):
-        """Handle single graph in `pytorch-geometric` format.
+        """Compute mode complementarity for a single graph in `pytorch-geometric` format.
 
         Parameters
         ----------
@@ -162,9 +219,7 @@ class ComplementarityFunctor(torch.nn.Module):
 
             # Lift graphs for each component
             D_G = [
-                lift_graph(
-                    G.subgraph(C), metric=self.graph_metric, **self.kwargs
-                )
+                lift_graph(G.subgraph(C), metric=self.graph_metric, **self.kwargs)
                 for C in components
             ]
 
@@ -202,8 +257,7 @@ class ComplementarityFunctor(torch.nn.Module):
 
         # Compute complementarity scores for each component
         scores = [
-            self.comparator(d_x, d_g)["complementarity"]
-            for d_x, d_g in zip(D_X, D_G)
+            self.comparator(d_x, d_g)["complementarity"] for d_x, d_g in zip(D_X, D_G)
         ]
 
         # Compute the weighted average score
