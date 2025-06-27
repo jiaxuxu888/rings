@@ -92,7 +92,7 @@ class SeparabilityFunctor:
             Dictionary containing the results of the comparison.
         """
         # Run the comparison
-        result = self.comparator.compare(
+        result = self.comparator(
             s1, s2, alpha=self.alpha, n_hypotheses=n_tests, **kwargs
         )
 
