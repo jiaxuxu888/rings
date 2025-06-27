@@ -10,50 +10,68 @@ class KSComparator:
 
     Uses permutation testing with KS statistic to determine if two samples
     come from the same distribution.
+
+    Methods
+    -------
+    __call__(x, y, **kwargs)
+        Compare two samples using Kolmogorov-Smirnov test with permutation testing.
     """
 
-    def compare(
+    def __call__(
         self,
-        s1: Union[List[float], np.ndarray],
-        s2: Union[List[float], np.ndarray],
+        x: Union[List[float], np.ndarray],
+        y: Union[List[float], np.ndarray],
         n_permutations: int = 10_000,
         alpha: float = 0.01,
         n_hypotheses: int = 1,
         random_state: Optional[int] = 42,
+        **kwargs,
     ) -> Dict:
         """
         Compare two samples using Kolmogorov-Smirnov test with permutation testing.
 
-        Args:
-            s1: First sample of measurements
-            s2: Second sample of measurements
-            n_permutations: Number of permutations for the test (default: 10,000)
-            alpha: Significance level (default: 0.01)
-            n_hypotheses: Number of hypotheses being tested (for Bonferroni correction)
-            random_state: Seed for reproducibility
+        Parameters
+        ----------
+        x : Union[List[float], np.ndarray]
+            First sample of measurements
+        y : Union[List[float], np.ndarray]
+            Second sample of measurements
+        n_permutations : int, optional
+            Number of permutations for the test (default: 10,000)
+        alpha : float, optional
+            Significance level (default: 0.01)
+        n_hypotheses : int, optional
+            Number of hypotheses being tested (for Bonferroni correction)
+        random_state : Optional[int], optional
+            Seed for reproducibility
+        **kwargs : dict, optional
+            Additional keyword arguments (not used)
 
-        Returns:
-            Dictionary containing:
-                - observed_statistic: The KS statistic observed in the original data
-                - pvalue: The p-value from the permutation test
-                - pvalue_adjusted: The Bonferroni-corrected p-value
-                - significant: Whether the adjusted p-value is less than alpha
+        Returns
+        -------
+        dict
+            Dictionary with keys:
+            - score: The KS statistic observed in the original data
+            - pvalue: The p-value from the permutation test
+            - pvalue_adjusted: The Bonferroni-corrected p-value
+            - significant: Whether the adjusted p-value is less than alpha
+            - method: "KS" (identifier for this test)
         """
         # Convert inputs to numpy arrays
-        s1 = np.array(s1)
-        s2 = np.array(s2)
+        x = np.array(x)
+        y = np.array(y)
 
         # Initialize RNG
         rng = np.random.RandomState(random_state)
 
         # Calculate observed statistic
-        observed_result = ks_2samp(s1, s2)
+        observed_result = ks_2samp(x, y)
         observed_statistic = observed_result.statistic
 
         # Prepare for permutation test
-        combined = np.concatenate((s1, s2))
-        n1 = len(s1)
-        n2 = len(s2)
+        combined = np.concatenate((x, y))
+        n1 = len(x)
+        n2 = len(y)
 
         # Run permutation test
         permuted_statistics = np.zeros(n_permutations)
@@ -77,10 +95,11 @@ class KSComparator:
         pvalue_adjusted = min(1.0, pvalue * n_hypotheses)
 
         return {
-            "observed_statistic": observed_statistic,
+            "score": observed_statistic,
             "pvalue": pvalue,
             "pvalue_adjusted": pvalue_adjusted,
             "significant": pvalue_adjusted < alpha,
+            "method": "KS",
         }
 
 
@@ -90,54 +109,72 @@ class WilcoxonComparator:
 
     Uses permutation testing with Wilcoxon statistic to determine if
     two samples come from the same distribution.
+
+    Methods
+    -------
+    __call__(x, y, **kwargs)
+        Compare two samples using Wilcoxon signed-rank test with permutation testing.
     """
 
-    def compare(
+    def __call__(
         self,
-        s1: Union[List[float], np.ndarray],
-        s2: Union[List[float], np.ndarray],
+        x: Union[List[float], np.ndarray],
+        y: Union[List[float], np.ndarray],
         n_permutations: int = 10_000,
         alpha: float = 0.01,
         n_hypotheses: int = 1,
         random_state: Optional[int] = 42,
+        **kwargs,
     ) -> Dict:
         """
         Compare two samples using Wilcoxon signed-rank test with permutation testing.
 
-        Args:
-            s1: First sample of measurements
-            s2: Second sample of measurements
-            n_permutations: Number of permutations for the test (default: 10,000)
-            alpha: Significance level (default: 0.01)
-            n_hypotheses: Number of hypotheses being tested (for Bonferroni correction)
-            random_state: Seed for reproducibility
+        Parameters
+        ----------
+        x : Union[List[float], np.ndarray]
+            First sample of measurements
+        y : Union[List[float], np.ndarray]
+            Second sample of measurements
+        n_permutations : int, optional
+            Number of permutations for the test (default: 10,000)
+        alpha : float, optional
+            Significance level (default: 0.01)
+        n_hypotheses : int, optional
+            Number of hypotheses being tested (for Bonferroni correction)
+        random_state : Optional[int], optional
+            Seed for reproducibility
+        **kwargs : dict, optional
+            Additional keyword arguments (not used)
 
-        Returns:
-            Dictionary containing:
-                - observed_statistic: The Wilcoxon statistic observed in the original data
-                - pvalue: The p-value from the permutation test
-                - pvalue_adjusted: The Bonferroni-corrected p-value
-                - significant: Whether the adjusted p-value is less than alpha
+        Returns
+        -------
+        dict
+            Dictionary with keys:
+            - score: The Wilcoxon statistic observed in the original data
+            - pvalue: The p-value from the permutation test
+            - pvalue_adjusted: The Bonferroni-corrected p-value
+            - significant: Whether the adjusted p-value is less than alpha
+            - method: "Wilcoxon" (identifier for this test)
         """
         # Convert inputs to numpy arrays
-        s1 = np.array(s1)
-        s2 = np.array(s2)
+        x = np.array(x)
+        y = np.array(y)
 
         # Initialize RNG
         rng = np.random.RandomState(random_state)
 
         # Verify arrays have the same length for Wilcoxon paired test
-        if len(s1) != len(s2):
+        if len(x) != len(y):
             raise ValueError(
                 "Wilcoxon signed-rank test requires samples of equal length"
             )
 
         # Calculate observed statistic
-        observed_result = wilcoxon(s1, s2, alternative="two-sided")
+        observed_result = wilcoxon(x, y, alternative="two-sided")
         observed_statistic = observed_result.statistic
 
         # Prepare for permutation test
-        combined = np.vstack((s1, s2)).T  # Paired data
+        combined = np.vstack((x, y)).T  # Paired data
         n_pairs = len(combined)
 
         # Run permutation test
@@ -178,8 +215,9 @@ class WilcoxonComparator:
         pvalue_adjusted = min(1.0, pvalue * n_hypotheses)
 
         return {
-            "observed_statistic": observed_statistic,
+            "score": observed_statistic,
             "pvalue": pvalue,
             "pvalue_adjusted": pvalue_adjusted,
             "significant": pvalue_adjusted < alpha,
+            "method": "Wilcoxon",
         }
