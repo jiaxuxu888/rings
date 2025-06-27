@@ -96,7 +96,7 @@ class RandomFeatures(BaseTransform):
         Initialize the RandomFeatures transform.
 
         Args:
-            shuffle (bool): If True, shuffle existing node features.
+            shuffle (bool): If True, shuffle existing node features. If False (default), sample new features from a standard normal distribution.
 
             fixed_dimension (int, optional): Fixed dimension for new random features. If None, use the original feature dimension.
         """
@@ -217,7 +217,7 @@ class CompleteGraph(BaseTransform):
 
 class RandomGraph(BaseTransform):
     """
-    A transform that replaces the existing graph structure with a random graph. The graph is generated either using an Erdos-Renyi perturbationl or by randomly shuffling the current edges.
+    A transform that replaces the existing graph structure with a random graph. The graph is generated either using an Erdos-Renyi perturbation or by randomly shuffling the current edges.
     """
 
     def __init__(self, p=None, shuffle=False):
@@ -225,8 +225,8 @@ class RandomGraph(BaseTransform):
         Initialize the RandomGraph transform.
 
         Args:
-            p (float): Probability of an edge existing between any two nodes.
-            shuffle (bool): If True, shuffle the existing graph structure instead.
+            p (float): Probability of an edge existing between any two nodes. Only used if shuffle=False (default).
+            shuffle (bool): If True, shuffle the existing graph structure. If False (default), assign edges with probability p (i.e. impose Erdos-Renyi graph structure).
         """
         self.p = p
         self.shuffle = shuffle
@@ -307,15 +307,13 @@ class RandomGraph(BaseTransform):
         Returns:
             int: Number of edges.
         """
-        num_edges = (
-            data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
-        )
+        num_edges = data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
         return num_edges
 
 
 class RandomConnectedGraph(BaseTransform):
     """
-    A transform that replaces the existing graph structure with a random graph. The graph is generated either using an Erdos-Renyi perturbationl or by randomly shuffling the current edges. The resulting graph is guaranteed to be connected.
+    A transform that replaces the existing graph structure with a random graph. The graph is generated either using an Erdos-Renyi perturbation or by randomly shuffling the current edges. The resulting graph is guaranteed to be connected.
     """
 
     def __init__(self, p=None, shuffle=False):
@@ -324,7 +322,7 @@ class RandomConnectedGraph(BaseTransform):
 
         Args:
             p (float): Edge probability for the random connected graph.
-            shuffle (bool): If True, shuffle edges instead of creating a new structure.
+            shuffle (bool): If True, shuffle the existing graph structure. If False (default), assign edges with probability p (i.e. impose Erdos-Renyi graph structure).
         """
         self.p = p
         self.shuffle = shuffle
@@ -340,9 +338,7 @@ class RandomConnectedGraph(BaseTransform):
         Returns:
             torch_geometric.data.Data: Transformed graph with connected structure.
         """
-        transform = (
-            self._shuffle if self.shuffle else self._randomize_connected_graph
-        )
+        transform = self._shuffle if self.shuffle else self._randomize_connected_graph
         data = transform(data)
         while not is_connected(data):
             data = transform(data)
@@ -393,14 +389,10 @@ class RandomConnectedGraph(BaseTransform):
 
             # Avoid self-loops and duplicate edges
             if u != v:
-                edge_set.add(
-                    (min(u, v), max(u, v))
-                )  # Use sorted edges for consistency
+                edge_set.add((min(u, v), max(u, v)))  # Use sorted edges for consistency
 
         # Convert edge_set to a PyTorch edge_index on CPU
-        edge_index = torch.tensor(
-            list(edge_set), dtype=torch.long, device="cpu"
-        ).t()
+        edge_index = torch.tensor(list(edge_set), dtype=torch.long, device="cpu").t()
 
         # Transfer the edge_index to the same device as the input data
         data.edge_index = edge_index.to(data.edge_index.device)
@@ -440,8 +432,6 @@ class RandomConnectedGraph(BaseTransform):
         Returns:
             int: Number of additional edges to add.
         """
-        num_edges = (
-            data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
-        )
+        num_edges = data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
         num_new_edges = num_edges - l_tree
         return num_new_edges if num_new_edges > 0 else 0
