@@ -4,8 +4,6 @@ import networkx as nx
 import torch
 from torch_geometric.utils import to_networkx
 from torch_geometric.transforms import BaseTransform
-from torch_geometric.transforms import OneHotDegree
-
 
 #  ╭──────────────────────────────────────────────────────────╮
 #  │ Helper Transforms                                        |
@@ -13,9 +11,7 @@ from torch_geometric.transforms import OneHotDegree
 
 
 class Shuffle(BaseTransform):
-    def __init__(
-        self, shuffle_edges=False, shuffle_features=False, generator=None
-    ):
+    def __init__(self, shuffle_edges=False, shuffle_features=False, generator=None):
         """
         Initialize the Shuffle transform.
 
@@ -78,9 +74,7 @@ class Shuffle(BaseTransform):
             )
             assert shuffled_target_nodes.size() == target_nodes.size()
             # Update edge_index with the shuffled edges
-            data.edge_index = torch.stack(
-                [source_nodes, shuffled_target_nodes], dim=0
-            )
+            data.edge_index = torch.stack([source_nodes, shuffled_target_nodes], dim=0)
 
         return data
 
@@ -109,9 +103,7 @@ class Shuffle(BaseTransform):
             )
 
             # Generate new target nodes ensuring they're not equal to the source nodes to avoid creating self-loops
-            valid_targets_mask = (
-                random_target_nodes != source_nodes[self_loop_mask]
-            )
+            valid_targets_mask = random_target_nodes != source_nodes[self_loop_mask]
             while not valid_targets_mask.all():
                 invalid_indices = ~valid_targets_mask
                 random_target_nodes[invalid_indices] = torch.randint(
@@ -121,9 +113,7 @@ class Shuffle(BaseTransform):
                     device=target_nodes.device,
                     generator=self.generator,
                 )
-                valid_targets_mask = (
-                    random_target_nodes != source_nodes[self_loop_mask]
-                )
+                valid_targets_mask = random_target_nodes != source_nodes[self_loop_mask]
 
             # Replace only target nodes to keep the source nodes intact
             target_nodes[self_loop_mask] = random_target_nodes
