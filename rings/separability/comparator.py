@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import ks_2samp, mannwhitneyu
+from scipy.stats import ks_2samp, wilcoxon
 from typing import Dict, List, Union, Optional
 from tqdm import tqdm
 
@@ -86,10 +86,9 @@ class KSComparator:
 
 class WilcoxonComparator:
     """
-    Comparator that uses the Mann-Whitney U test (equivalent to Wilcoxon rank-sum)
-    to compare two distributions.
+    Comparator that uses the Wilcoxon signed-rank test to compare two distributions.
 
-    Uses permutation testing with Mann-Whitney U statistic to determine if
+    Uses permutation testing with Wilcoxon statistic to determine if
     two samples come from the same distribution.
     """
 
@@ -103,7 +102,7 @@ class WilcoxonComparator:
         random_state: Optional[int] = 42,
     ) -> Dict:
         """
-        Compare two samples using Mann-Whitney U test with permutation testing.
+        Compare two samples using Wilcoxon signed-rank test with permutation testing.
 
         Args:
             s1: First sample of measurements
@@ -115,7 +114,7 @@ class WilcoxonComparator:
 
         Returns:
             Dictionary containing:
-                - observed_statistic: The U statistic observed in the original data
+                - observed_statistic: The Wilcoxon statistic observed in the original data
                 - pvalue: The p-value from the permutation test
                 - pvalue_adjusted: The Bonferroni-corrected p-value
                 - significant: Whether the adjusted p-value is less than alpha
@@ -127,34 +126,47 @@ class WilcoxonComparator:
         # Initialize RNG
         rng = np.random.RandomState(random_state)
 
+        # Verify arrays have the same length for Wilcoxon paired test
+        if len(s1) != len(s2):
+            raise ValueError(
+                "Wilcoxon signed-rank test requires samples of equal length"
+            )
+
         # Calculate observed statistic
-        observed_result = mannwhitneyu(s1, s2, alternative="two-sided")
+        observed_result = wilcoxon(s1, s2, alternative="two-sided")
         observed_statistic = observed_result.statistic
 
         # Prepare for permutation test
-        combined = np.concatenate((s1, s2))
-        n1 = len(s1)
-        n2 = len(s2)
+        combined = np.vstack((s1, s2)).T  # Paired data
+        n_pairs = len(combined)
 
         # Run permutation test
         permuted_statistics = np.zeros(n_permutations)
 
         for i in tqdm(range(n_permutations), desc="Wilcoxon Permutation Test"):
-            # Shuffle the combined data
-            shuffled = rng.permutation(combined)
+            # For each pair, randomly swap or don't swap the elements
+            perm_combined = combined.copy()
+            swap_indices = rng.choice([True, False], size=n_pairs)
 
-            # Split into two groups of original sizes
-            perm_s1 = shuffled[:n1]
-            perm_s2 = shuffled[n1:]
+            if swap_indices.any():
+                (
+                    perm_combined[swap_indices, 0],
+                    perm_combined[swap_indices, 1],
+                ) = (
+                    perm_combined[swap_indices, 1],
+                    perm_combined[swap_indices, 0],
+                )
+
+            # Split into two groups
+            perm_s1 = perm_combined[:, 0]
+            perm_s2 = perm_combined[:, 1]
 
             # Compute statistic on permuted data
-            perm_result = mannwhitneyu(
-                perm_s1, perm_s2, alternative="two-sided"
-            )
+            perm_result = wilcoxon(perm_s1, perm_s2, alternative="two-sided")
             permuted_statistics[i] = perm_result.statistic
 
         # Calculate p-value (two-sided)
-        # For Mann-Whitney U, the direction matters, so we compare absolute deviations
+        # For Wilcoxon, the direction matters, so we compare absolute deviations
         # from the mean of the permutation distribution
         mean_perm_stat = np.mean(permuted_statistics)
         observed_dev = np.abs(observed_statistic - mean_perm_stat)
