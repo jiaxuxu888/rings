@@ -1,13 +1,8 @@
 import numpy as np
 import itertools
 import pandas as pd
-from typing import Dict, List, Union, Optional, Any
-
-# For parallelism
-try:
-    import joblib
-except ImportError:
-    joblib = None
+import joblib
+from typing import Dict, List, Union, Optional, Any, Callable
 
 
 class SeparabilityFunctor:
@@ -26,25 +21,36 @@ class SeparabilityFunctor:
         Number of jobs to run in parallel. If 1, no parallelism is used.
     alpha : float, default=0.01
         Family-wise significance level for hypothesis testing.
+    **kwargs : dict
+        Additional arguments passed to the comparator.
     """
 
-    def __init__(self, comparator, n_jobs: int = 1, alpha: float = 0.01):
+    def __init__(
+        self,
+        comparator: Callable,
+        n_jobs: int = 1,
+        alpha: float = 0.01,
+        **kwargs,
+    ):
         """
         Initialize the SeparabilityFunctor.
 
         Parameters
         ----------
-        comparator : object
+        comparator : Callable
             An instance of a comparator class (e.g., KSComparator, WilcoxonComparator)
             that implements a compare() method.
         n_jobs : int, default=1
             Number of jobs to run in parallel. If 1, no parallelism is used.
         alpha : float, default=0.01
             Family-wise significance level for hypothesis testing.
+        **kwargs : dict
+            Additional arguments passed to the comparator.
         """
         self.comparator = comparator
         self.n_jobs = n_jobs
         self.alpha = alpha
+        self.kwargs = kwargs
 
         # Check if joblib is available when n_jobs > 1
         if self.n_jobs > 1 and joblib is None:
@@ -106,6 +112,10 @@ class SeparabilityFunctor:
         """
         Compute all pairwise separability tests between distributions.
 
+        This method performs statistical tests to determine whether distributions are
+        significantly different from each other, applying Bonferroni correction for
+        multiple comparisons.
+
         Parameters
         ----------
         distributions : Dict[str, Union[List[float], np.ndarray]]
@@ -122,6 +132,18 @@ class SeparabilityFunctor:
         -------
         Union[List[Dict[str, Any]], pd.DataFrame]
             Results of all pairwise comparisons, either as a list of dictionaries or a pandas DataFrame.
+            Each result contains the mode names, p-value, statistic, and significance indicator.
+
+        Examples
+        --------
+        >>> functor = SeparabilityFunctor(comparator=KSComparator(), n_jobs=4, alpha=0.05)
+        >>> distributions = {
+        ...     "Original": np.array([0.8, 0.7, 0.75, 0.82, 0.79]),
+        ...     "EmptyGraph": np.array([0.5, 0.48, 0.52, 0.49, 0.51]),
+        ...     "NoFeatures": np.array([0.45, 0.47, 0.5, 0.52, 0.48])
+        ... }
+        >>> results = functor.forward(distributions)
+        >>> print(results)
         """
         # Get all unique pairs of modes
         pairs = list(itertools.combinations(distributions.keys(), 2))
