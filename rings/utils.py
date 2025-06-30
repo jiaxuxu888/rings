@@ -4,8 +4,6 @@ import networkx as nx
 import torch
 from torch_geometric.utils import to_networkx
 from torch_geometric.transforms import BaseTransform
-from torch_geometric.transforms import OneHotDegree
-
 
 #  ╭──────────────────────────────────────────────────────────╮
 #  │ Helper Transforms                                        |
