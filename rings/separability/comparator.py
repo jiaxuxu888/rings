@@ -56,10 +56,29 @@ class KSComparator:
             - pvalue_adjusted: The Bonferroni-corrected p-value
             - significant: Whether the adjusted p-value is less than alpha
             - method: "KS" (identifier for this test)
+
+        Raises
+        ------
+        ValueError
+            If either input array is empty
         """
         # Convert inputs to numpy arrays
         x = np.array(x)
         y = np.array(y)
+
+        # Check for empty arrays
+        if len(x) == 0 or len(y) == 0:
+            raise ValueError("Input arrays must not be empty for KS test")
+
+        # Check if arrays are identical
+        if np.array_equal(x, y):
+            return {
+                "score": 0.0,
+                "pvalue": 1.0,
+                "pvalue_adjusted": 1.0,
+                "significant": False,
+                "method": "KS",
+            }
 
         # Initialize RNG
         rng = np.random.RandomState(random_state)
@@ -94,11 +113,14 @@ class KSComparator:
         # Apply Bonferroni correction
         pvalue_adjusted = min(1.0, pvalue * n_hypotheses)
 
+        # Convert numpy boolean to Python boolean for consistent behavior
+        is_significant = bool(pvalue_adjusted < alpha)
+
         return {
             "score": observed_statistic,
             "pvalue": pvalue,
             "pvalue_adjusted": pvalue_adjusted,
-            "significant": pvalue_adjusted < alpha,
+            "significant": is_significant,
             "method": "KS",
         }
 
@@ -169,6 +191,17 @@ class WilcoxonComparator:
                 "Wilcoxon signed-rank test requires samples of equal length"
             )
 
+        # Check if arrays are identical or have all zero differences
+        # which would cause division by zero in the wilcoxon test
+        if np.array_equal(x, y) or np.all(x - y == 0):
+            return {
+                "score": 0.0,
+                "pvalue": 1.0,
+                "pvalue_adjusted": 1.0,
+                "significant": False,
+                "method": "Wilcoxon",
+            }
+
         # Calculate observed statistic
         observed_result = wilcoxon(x, y, alternative="two-sided")
         observed_statistic = observed_result.statistic
@@ -214,10 +247,13 @@ class WilcoxonComparator:
         # Apply Bonferroni correction
         pvalue_adjusted = min(1.0, pvalue * n_hypotheses)
 
+        # Convert numpy boolean to Python boolean for consistent behavior
+        is_significant = bool(pvalue_adjusted < alpha)
+
         return {
             "score": observed_statistic,
             "pvalue": pvalue,
             "pvalue_adjusted": pvalue_adjusted,
-            "significant": pvalue_adjusted < alpha,
+            "significant": is_significant,
             "method": "Wilcoxon",
         }

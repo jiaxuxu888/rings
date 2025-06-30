@@ -91,9 +91,10 @@ class SeparabilityFunctor:
         Dict[str, Any]
             Dictionary containing the results of the comparison.
         """
-        # Run the comparison
+        # Run the comparison with both self.kwargs and kwargs
+        combined_kwargs = {**self.kwargs, **kwargs}
         result = self.comparator(
-            s1, s2, alpha=self.alpha, n_hypotheses=n_tests, **kwargs
+            s1, s2, alpha=self.alpha, n_hypotheses=n_tests, **combined_kwargs
         )
 
         # Add the mode names to the result
@@ -145,6 +146,18 @@ class SeparabilityFunctor:
         >>> results = functor.forward(distributions)
         >>> print(results)
         """
+        # Validate that all distributions contain numeric data
+        for mode, distribution in distributions.items():
+            try:
+                array_data = np.array(distribution)
+                # Check if data is numeric
+                if not np.issubdtype(array_data.dtype, np.number):
+                    raise Exception(
+                        f"Distribution '{mode}' contains non-numeric data"
+                    )
+            except (ValueError, TypeError) as e:
+                raise Exception(f"Invalid data in distribution '{mode}': {e}")
+
         # Get all unique pairs of modes
         pairs = list(itertools.combinations(distributions.keys(), 2))
         n_tests = len(pairs)
