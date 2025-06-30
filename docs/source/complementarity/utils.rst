@@ -1,5 +1,5 @@
 complementarity.utils.py
 ===================================
 
-.. .. automodule:: rings.complementarity.utils
-..    :members:
+.. automodule:: rings.complementarity.utils
+   :members:

@@ -1,5 +1,5 @@
 complementarity.metrics.py
 ===================================
 
-.. .. automodule:: rings.complementarity.metrics
-..    :members:
+.. automodule:: rings.complementarity.metrics
+   :members:
