@@ -146,6 +146,14 @@ Get help and see all available options.
    complementarity/utils
 
 
+.. toctree::
+   :maxdepth: 2
+   :caption: -> Performance Separability
+
+   separability/comparator
+   separability/functor
+
+
 📚 Citation
 -------------
 
