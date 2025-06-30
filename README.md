@@ -4,34 +4,35 @@ This is the official repository for our ICML paper:
 
 **[No Metric to Rule Them All: Toward Principled Evaluations of Graph-Learning Datasets](https://arxiv.org/abs/2502.02379)**
 
-which introduces **RINGS**: a perturbation framework for attributed graphs, designed to facilitate more principled evaluations of graph learning benchmarks from first principles.
+which introduces **RINGS**: a perturbation framework for attributed graphs, designed to enable more principled evaluations of graph-learning benchmarks from first principles.
 
 ---
 
 ## 🚧 Repository Status
 
-This repository is **under active development**.
-We've made it public early to invite feedback, discussion, and **transparency** as we transition from research prototypes to a stable, user-friendly package.
+This repository is **under active development**.  
+We’re making it public early to invite feedback, discussion, and **transparency** as we move from research prototypes to a stable, user-friendly package.
 
-In the coming weeks, we’ll be releasing updates, architectural notes, and implementation details via a series of pull requests. You're welcome to follow along, open issues, or suggest improvements!
+In the coming weeks, we’ll release updates, architectural notes, and implementation details via a series of pull requests. You're welcome to follow along, open issues, or suggest improvements!
 
 ---
 
 ## 🚀 Current MVP Release
 
-This initial release is a Minimum Viable Product (MVP) that includes:
+This initial Minimum Viable Product (MVP) includes:
 
 - A set of **graph perturbation transformations** for manipulating node features and graph structure
+- The **SeparabilityFunctor**, which enables statistical comparisons between distributions
 - The **ComplementarityFunctor**, which computes mode complementarity between node features and graph structure
-- Example scripts demonstrating usage with PyTorch Geometric datasets
+- Example scripts demonstrating usage with PyTorch Geometric datasets and toy performance distributions
 
 ---
 
 ## 💍 Framework Overview
 
-We are developing a community-friendly implementation of the **RINGS** framework introduced in the paper. Our goal is to make it easy for the graph learning community to:
+We are developing a community-friendly implementation of the **RINGS** framework introduced in the paper. Our goal is to make it easy for the graph-learning community to:
 
-- Apply dataset perturbations tailored to graph learning datasets
+- Apply dataset perturbations tailored to graph-learning datasets
 - Conduct more rigorous and insightful evaluations of both datasets and models
 - Promote better dataset practices and evaluation hygiene across the field
 
@@ -45,7 +46,7 @@ RINGS uses [uv](https://github.com/astral-sh/uv) as the package manager, which p
 
 ### Prerequisites
 
-1. Install `uv` if you don’t have it already:
+Install `uv` if you don’t have it already:
 
 ```bash
 pip install uv
@@ -71,7 +72,7 @@ source .venv/bin/activate
 
 ## 🧹 Key Components
 
-### Available Perturbations
+### Mode Perturbations
 
 RINGS provides several perturbation transforms that can be applied to graph datasets:
 
@@ -89,6 +90,21 @@ RINGS provides several perturbation transforms that can be applied to graph data
 - `RandomGraph`: Generates a random graph structure
 - `RandomConnectedGraph`: Generates a random graph that is guaranteed to be connected
 
+### SeparabilityFunctor
+
+The `SeparabilityFunctor` computes statistically rigorous comparisons between multiple distributions to determine if they differ significantly. This is useful for:
+
+- Evaluating whether different graph perturbations produce statistically distinct model performances
+- Identifying which perturbations most impact model behavior
+- Making rigorous, statistically valid claims about distribution separability
+
+It employs statistical tests with permutation testing and built-in correction for multiple hypotheses (Bonferroni correction).
+
+Available comparators include:
+
+- `KSComparator`: Kolmogorov–Smirnov test for comparing distributions
+- `WilcoxonComparator`: Wilcoxon signed-rank test for paired comparisons
+
 ### ComplementarityFunctor
 
 The `ComplementarityFunctor` measures the alignment between node features and graph structure by comparing their induced metric spaces. It can help you understand:
@@ -101,28 +117,51 @@ The `ComplementarityFunctor` measures the alignment between node features and gr
 
 ## 🔍 Example Usage
 
-The repository includes an example script that demonstrates how to use RINGS to analyze graph datasets:
+The repository includes example scripts that demonstrate how to use RINGS to analyze graph datasets.
+
+### Performance Separability
+
+Measure distances between performance distributions to test whether the original dataset statistically outperforms perturbed versions.
+
+```bash
+# Run a basic separability analysis with the default KS comparator
+python -m examples.separability --comparator ks --alpha 0.05
+```
+
+```bash
+# Use the Wilcoxon test comparator
+python -m examples.separability --comparator wilcoxon --alpha 0.01
+```
+
+```bash
+# Get help and see all available options
+python -m examples.separability --help
+```
+
+The script analyzes and compares distributions from synthetic data, showing how to determine if differences are statistically significant.
+
+---
 
 ### Mode Complementarity
+
+Assess the complementarity of geometric information in the metric spaces of node features and graph structure.
 
 ```bash
 # Run the example on the MUTAG dataset with original (unperturbed) graphs
 python -m examples.complementarity --dataset MUTAG --perturbation original
+```
 
+```bash
 # Try different perturbations
 python -m examples.complementarity --dataset MUTAG --perturbation random-features
-python -m examples.complementarity --dataset MUTAG --perturbation empty-graph
+```
 
-# Analyze a different TU dataset
-python -m examples.complementarity --dataset ENZYMES --perturbation original
-
+```bash
 # Get help and see all available options
 python -m examples.complementarity --help
 ```
 
-The script will output complementarity statistics that measure how well node features align with graph structure in the dataset.
-
----
+The script outputs complementarity statistics that measure how well node features align with graph structure in the dataset.
 
 ## 📚 Citation
 

@@ -19,7 +19,14 @@ from typing import Dict, List, Union, Optional, Any
 
 
 class ComplementarityFunctor(torch.nn.Module):
-    """A class for computing the mode complementarity of graphs.
+    """
+    A functor for computing complementarity between graph structure and node features.
+
+    This class computes complementarity by comparing the metric spaces derived from
+    graph structure and node features using a specified comparator. It quantifies
+    how well node features align with the graph structure, with lower values indicating
+    stronger alignment.
+
     Parameters
     ----------
     torch.nn.Module : torch.nn.Module
@@ -37,19 +44,51 @@ class ComplementarityFunctor(torch.nn.Module):
     comparator : object
         An instance of a comparator class (e.g. MatrixNormComparator) that will be used to compare the lifted metric spaces.
     **kwargs : dict
-        Keyword arguments to specify the norm to be used when initializing the comparator. Supported norms are:
-        - "L11" (default)
-        - "frobenius"
-    Methods
-    -------
-    use_edge_information(value: bool)
-        Setter function to toggle the use of edge information when lifting the graph into a metric space.
-    forward(batch: torch_geometric.data.Batch)
-        Compute mode complementarity for a batch of graphs in `pytorch-geometric` format, parallelizing based on n_jobs attribute.
-    _forward(data: torch_geometric.data.Data)
-        Compute mode complementarity for a single graph in `pytorch-geometric` format.
-    _complementarity(G: networkx.Graph, return_metric_spaces: bool = False)
-        Calculate the mode complementarity of a single graph.
+        Additional arguments passed to the comparator and metric functions.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import torch
+    >>> from torch_geometric.data import Data
+    >>> from rings.complementarity.comparator import MatrixNormComparator
+    >>> from rings.complementarity.metrics import standard_feature_metrics, shortest_path_distance
+    >>>
+    >>> # Create a simple graph where node features correspond to positions in the graph
+    >>> # A path graph: 0 -- 1 -- 2 -- 3 with features encoding their positions
+    >>> edge_index = torch.tensor([[0, 1, 1, 2, 2, 3], [1, 0, 2, 1, 3, 2]], dtype=torch.long)
+    >>> # Node features encode positions: node 0 is at position 0, node 1 at position 1, etc.
+    >>> x = torch.tensor([[0], [1], [2], [3]], dtype=torch.float)
+    >>> data = Data(x=x, edge_index=edge_index)
+    >>>
+    >>> # Create functor with simple metrics
+    >>> functor = ComplementarityFunctor(
+    ...     feature_metric='euclidean',  # Use Euclidean distance for features
+    ...     graph_metric='shortest_path_distance',  # Use shortest path for graph
+    ...     comparator=MatrixNormComparator,  # Compare using matrix norm
+    ...     n_jobs=1,
+    ...     normalize_diameters=True,  # Normalize distances for fair comparison
+    ... )
+    >>>
+    >>> # Compute complementarity for the graph
+    >>> result = functor([data])
+    >>> print(f"Complementarity score: {result['complementarity'].item():.4f}")
+    Complementarity score: 0.0000
+    >>>
+    >>> # The score is 0, indicating perfect alignment between features and structure
+    >>> # (node features perfectly correspond to their positions in the path)
+    >>>
+    >>> # Now create a graph with misaligned features
+    >>> x_misaligned = torch.tensor([[3], [1], [2], [0]], dtype=torch.float)  # Swap 0 and 3
+    >>> data_misaligned = Data(x=x_misaligned, edge_index=edge_index)
+    >>>
+    >>> # Compute complementarity for the misaligned graph
+    >>> result = functor([data_misaligned])
+    >>> print(f"Complementarity score: {result['complementarity'].item():.4f}")
+    Complementarity score: 0.5000
+    >>>
+    >>> # The score is higher, indicating weaker alignment between features and structure
+    >>> # (node features no longer match their positions in the path)
     """
 
     def __init__(
@@ -60,6 +99,7 @@ class ComplementarityFunctor(torch.nn.Module):
         n_jobs: int = 1,
         use_edge_information: bool = False,
         normalize_diameters: bool = True,
+        edge_attr: Optional[str] = None,
         **kwargs,
     ):
         """Initialize the ComplementarityFunctor.
@@ -85,13 +125,14 @@ class ComplementarityFunctor(torch.nn.Module):
         self.graph_metric = graph_metric
         self.normalize_diameters = normalize_diameters
         self.use_edge_information = use_edge_information
+        self.edge_attr = None
 
         # Build kwargs for metrics and comparator
         self.kwargs = kwargs.copy()
 
-        # Set edge weight parameter if using edge information
+        # If no attribute convention then try PyG convention of "edge_attr"
         if self.use_edge_information:
-            self.kwargs["weight"] = "edge_attr"
+            self.edge_attr = edge_attr if edge_attr is not None else "edge_attr"
 
         # Set up the comparator
         self.comparator = comparator(n_jobs=n_jobs, **self.kwargs)
@@ -140,15 +181,36 @@ class ComplementarityFunctor(torch.nn.Module):
             for key in other_keys:
                 result[key] = [output[key] for output in outputs]
 
-        # If DataFrame format wasn't requested but there's only one result,
-        # return the list of individual results
-        if len(outputs) > 1:
-            return result
-        else:
-            return outputs
+        return result
 
-    def _forward(self, data):
-        """Compute mode complementarity for a single graph in `pytorch-geometric` format.
+    def _process_single(self, data) -> Dict[str, Any]:
+        """
+        Process a single graph for complementarity calculation.
+
+        Parameters
+        ----------
+        data : torch_geometric.Data
+            The graph in PyTorch Geometric format.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing the complementarity score and any additional metrics.
+        """
+        # Step 1: Preprocess graph
+        G = self._preprocess_graph(data, self.edge_attr)
+
+        # Step 2: Compute complementarity
+        return self._compute_complementarity(G)
+
+    def _preprocess_graph(self, data, edge_attr=None) -> nx.Graph:
+        """
+        Preprocess a graph from PyTorch Geometric format to NetworkX.
+
+        In particular, this function creates a weighted graph (if requested by the user). When given multidimensional edge attributes, we construct scalar edge weights by applying a norm.
+
+        We assign these to an attribute called "weight" in the NetworkX graph, which then will be picked up by default when computing graph metrics.
+
 
         Parameters
         ----------
@@ -160,27 +222,35 @@ class ComplementarityFunctor(torch.nn.Module):
         networkx.Graph
             The preprocessed graph in NetworkX format.
         """
-        # Convert to NetworkX
+        # Only allow string or None for edge_attr
+        if not (isinstance(edge_attr, str) or edge_attr is None):
+            edge_attr = None
+
         G = to_networkx(
             data,
             to_undirected=True,
-            node_attrs=["x"],
-            edge_attrs=["edge_attr"] if "edge_attr" in data else None,
+            node_attrs=["x"] if "x" in data else None,
+            edge_attrs=[edge_attr] if edge_attr is not None else edge_attr,
         )
 
-        # Process edge attributes if needed
-        if "edge_attr" in data and self.use_edge_information:
-            attributes = nx.get_edge_attributes(G, "edge_attr")
-
+        # If using edge information and edge_attr is present, set weights from edge_attr
+        if (
+            self.use_edge_information
+            and isinstance(edge_attr, str)
+            and edge_attr in data
+        ):
+            attributes = nx.get_edge_attributes(G, edge_attr)
             # Convert multi-dimensional edge attributes to scalars using norm
-            attributes.update(
-                {
-                    edge: np.linalg.norm(attribute)
-                    for edge, attribute in attributes.items()
-                }
+            attributes = {
+                edge: np.linalg.norm(attribute)
+                for edge, attribute in attributes.items()
+            }
+            nx.set_edge_attributes(G, attributes, "weight")
+        else:
+            # Always set all edge weights to 1.0 if not using edge information
+            nx.set_edge_attributes(
+                G, {edge: 1.0 for edge in G.edges()}, "weight"
             )
-
-            nx.set_edge_attributes(G, attributes, "edge_attr")
 
         return G
 
@@ -216,21 +286,16 @@ class ComplementarityFunctor(torch.nn.Module):
         # Extract node features
         X = np.asarray(list(nx.get_node_attributes(G, "x").values()))
 
-        # Validate input
+        # Validate input: treat empty graph or empty feature matrix the same
         empty_graph = G.number_of_edges() == 0
-
         if len(X) == 0:
             warnings.warn("Feature matrix X is empty, skipping graph.")
-            return self.comparator.invalid_data
-
-        if G.number_of_nodes() == 0:
-            warnings.warn("Graph G has no nodes, skipping it.")
-            return self.comparator.invalid_data
+            return self.invalid_data
 
         # Handle connected components
         metric_spaces = self._lift_metrics(G, X, empty_graph)
         if metric_spaces is None:
-            return self.comparator.invalid_data
+            return self.invalid_data
 
         D_X, D_G, sizes = metric_spaces
 
@@ -354,9 +419,8 @@ class ComplementarityFunctor(torch.nn.Module):
             List of complementarity scores for each component.
         """
         # Compute complementarity scores for each component
-        scores = [
-            self.comparator(d_x, d_g)["complementarity"]
-            for d_x, d_g in zip(D_X, D_G)
+        return [
+            self.comparator(d_x, d_g)["score"] for d_x, d_g in zip(D_X, D_G)
         ]
 
     def _aggregate(self, scores, sizes):
@@ -385,3 +449,22 @@ class ComplementarityFunctor(torch.nn.Module):
                 return np.mean(scores)
             else:
                 return np.nan
+
+    @property
+    def invalid_data(self):
+        """
+        Return a dictionary with NaN score and other standardized fields.
+
+        Returns
+        -------
+        dict
+            Dictionary with keys:
+            - score: NaN (invalid data)
+            - pvalue: None
+            - pvalue_adjusted: None
+            - significant: None
+            - method: The norm used
+        """
+        return {
+            "complementarity": np.nan,
+        }
