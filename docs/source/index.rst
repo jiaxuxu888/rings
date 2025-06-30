@@ -125,25 +125,25 @@ Get help and see all available options.
    python -m examples.complementarity --help
 
 
-.. 🔍 Table of Contents
-.. ---------------------
+🔍 Table of Contents
+---------------------
 
-.. .. toctree::
-..    :maxdepth: 2
-..    :caption: RINGS
+.. toctree::
+   :maxdepth: 2
+   :caption: RINGS
 
-..    perturbations
-..    utils
+   perturbations
+   utils
 
 
-.. .. toctree::
-..    :maxdepth: 2
-..    :caption: -> Mode Complementarity
+.. toctree::
+   :maxdepth: 2
+   :caption: -> Mode Complementarity
 
-..    complementarity/comparator
-..    complementarity/functor
-..    complementarity/metrics
-..    complementarity/utils
+   complementarity/comparator
+   complementarity/functor
+   complementarity/metrics
+   complementarity/utils
 
 
 📚 Citation
