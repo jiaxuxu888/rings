@@ -42,8 +42,12 @@ class TestMatrixNormComparator:
         """Test the invalid_data property."""
         comparator = MatrixNormComparator()
         result = comparator.invalid_data
-        assert "complementarity" in result
-        assert np.isnan(result["complementarity"])
+        assert "score" in result
+        assert np.isnan(result["score"])
+        assert result["method"] == "L11"
+        assert result["pvalue"] is None
+        assert result["pvalue_adjusted"] is None
+        assert result["significant"] is None
 
     def test_call_with_l11_norm(self):
         """Test the __call__ method with L11 norm."""
@@ -53,8 +57,12 @@ class TestMatrixNormComparator:
         result = comparator(D_X, D_G)
 
         # Expected: sum(abs([0-0, 1-2], [1-2, 0-0])) / (2²-2) = sum(abs([0, -1], [-1, 0])) / 2 = 2/2 = 1.0
-        assert "complementarity" in result
-        assert np.isclose(result["complementarity"], 1.0)
+        assert "score" in result
+        assert np.isclose(result["score"], 1.0)
+        assert result["method"] == "L11"
+        assert result["pvalue"] is None
+        assert result["pvalue_adjusted"] is None
+        assert result["significant"] is None
 
     def test_call_with_frobenius_norm(self):
         """Test the __call__ method with Frobenius norm."""
@@ -64,8 +72,12 @@ class TestMatrixNormComparator:
         result = comparator(D_X, D_G)
 
         # Expected: ||[0-0, 1-2], [1-2, 0-0]||_F / sqrt(2²-2) = ||[0, -1], [-1, 0]||_F / sqrt(2) = sqrt(2) / sqrt(2) = 1.0
-        assert "complementarity" in result
-        assert np.isclose(result["complementarity"], 1.0)
+        assert "score" in result
+        assert np.isclose(result["score"], 1.0)
+        assert result["method"] == "frobenius"
+        assert result["pvalue"] is None
+        assert result["pvalue_adjusted"] is None
+        assert result["significant"] is None
 
     def test_single_element_matrices(self):
         """Test calculation with single element matrices."""
@@ -75,7 +87,8 @@ class TestMatrixNormComparator:
         result = comparator(D_X, D_G)
 
         # Expected: |5-2| / 1 = 3
-        assert np.isclose(result["complementarity"], 3.0)
+        assert np.isclose(result["score"], 3.0)
+        assert result["method"] == "L11"
 
     def test_larger_matrices(self):
         """Test calculation with larger matrices."""
@@ -86,4 +99,35 @@ class TestMatrixNormComparator:
 
         # The sum of absolute differences is 12, and divisor is 3²-3 = 6
         expected = 12 / 6
-        assert np.isclose(result["complementarity"], expected)
+        assert np.isclose(result["score"], expected)
+        assert result["method"] == "L11"
+
+    def test_l11_factory_function(self):
+        """Test the L11MatrixNormComparator factory function."""
+        from rings.complementarity.comparator import L11MatrixNormComparator
+
+        comparator = L11MatrixNormComparator()
+        assert comparator.norm == "L11"
+
+        D_X = np.array([[0, 1], [1, 0]])
+        D_G = np.array([[0, 2], [2, 0]])
+        result = comparator(D_X, D_G)
+
+        assert np.isclose(result["score"], 1.0)
+        assert result["method"] == "L11"
+
+    def test_frobenius_factory_function(self):
+        """Test the FrobeniusMatrixNormComparator factory function."""
+        from rings.complementarity.comparator import (
+            FrobeniusMatrixNormComparator,
+        )
+
+        comparator = FrobeniusMatrixNormComparator()
+        assert comparator.norm == "frobenius"
+
+        D_X = np.array([[0, 1], [1, 0]])
+        D_G = np.array([[0, 2], [2, 0]])
+        result = comparator(D_X, D_G)
+
+        assert np.isclose(result["score"], 1.0)
+        assert result["method"] == "frobenius"
