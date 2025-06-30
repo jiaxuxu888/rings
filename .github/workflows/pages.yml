@@ -41,5 +41,3 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          path: docs/build/html # Path where the Sphinx docs are stored
