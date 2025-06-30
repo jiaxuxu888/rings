@@ -185,7 +185,7 @@ def heat_kernel_distance(G, **kwargs):
     return pairwise_distances(X, metric="euclidean", n_jobs=n_jobs)
 
 
-def resistance_distance(G, weight=None, **kwargs):
+def resistance_distance(G, **kwargs):
     """
     Calculate resistance distance between vertices of a graph.
 
@@ -209,7 +209,7 @@ def resistance_distance(G, weight=None, **kwargs):
         Matrix of distance values
     """
     try:
-        distances = nx.resistance_distance(G, weight=weight)
+        distances = nx.resistance_distance(G)
         distances = nx.utils.dict_to_numpy_array(distances)
     except nx.NetworkXError:
         distances = [np.nan]
@@ -217,7 +217,7 @@ def resistance_distance(G, weight=None, **kwargs):
     return distances
 
 
-def shortest_path_distance(G, weight=None, **kwargs):
+def shortest_path_distance(G, **kwargs):
     """Calculate shortest-path distance between vertices.
 
     Calculate shortest-path distance between vertices of a graph using
@@ -242,7 +242,7 @@ def shortest_path_distance(G, weight=None, **kwargs):
     np.array
         Matrix of distance values
     """
-    return nx.floyd_warshall_numpy(G, weight=weight)
+    return nx.floyd_warshall_numpy(G)
 
 
 #  ╭──────────────────────────────────────────────────────────╮

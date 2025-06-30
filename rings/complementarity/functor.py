@@ -50,6 +50,7 @@ class ComplementarityFunctor(torch.nn.Module):
         n_jobs: int = 1,
         use_edge_information: bool = False,
         normalize_diameters: bool = True,
+        edge_attr: Optional[str] = None,
         **kwargs,
     ):
         torch.nn.Module.__init__(self)
@@ -59,13 +60,14 @@ class ComplementarityFunctor(torch.nn.Module):
         self.graph_metric = graph_metric
         self.normalize_diameters = normalize_diameters
         self.use_edge_information = use_edge_information
+        self.edge_attr = None
 
         # Build kwargs for metrics and comparator
         self.kwargs = kwargs.copy()
 
-        # Set edge weight parameter if using edge information
+        # If no attribute convention then try PyG convention of "edge_attr"
         if self.use_edge_information:
-            self.kwargs["weight"] = "edge_attr"
+            self.edge_attr = edge_attr if edge_attr is not None else "edge_attr"
 
         # Set up the comparator
         self.comparator = comparator(n_jobs=n_jobs, **self.kwargs)
@@ -143,12 +145,7 @@ class ComplementarityFunctor(torch.nn.Module):
             for key in other_keys:
                 result[key] = [output[key] for output in outputs]
 
-        # If DataFrame format wasn't requested but there's only one result,
-        # return the list of individual results
-        if len(outputs) > 1:
-            return result
-        else:
-            return outputs
+        return result
 
     def _process_single(self, data) -> Dict[str, Any]:
         """
@@ -165,14 +162,19 @@ class ComplementarityFunctor(torch.nn.Module):
             Dictionary containing the complementarity score and any additional metrics.
         """
         # Step 1: Preprocess graph
-        G = self._preprocess_graph(data)
+        G = self._preprocess_graph(data, self.edge_attr)
 
         # Step 2: Compute complementarity
         return self._compute_complementarity(G)
 
-    def _preprocess_graph(self, data):
+    def _preprocess_graph(self, data, edge_attr=None) -> nx.Graph:
         """
         Preprocess a graph from PyTorch Geometric format to NetworkX.
+
+        In particular, this function creates a weighted graph (if requested by the user). When given multidimensional edge attributes, we construct scalar edge weights by applying a norm.
+
+        We assign these to an attribute called "weight" in the NetworkX graph, which then will be picked up by default when computing graph metrics.
+
 
         Parameters
         ----------
@@ -184,27 +186,35 @@ class ComplementarityFunctor(torch.nn.Module):
         networkx.Graph
             The preprocessed graph in NetworkX format.
         """
-        # Convert to NetworkX
+        # Only allow string or None for edge_attr
+        if not (isinstance(edge_attr, str) or edge_attr is None):
+            edge_attr = None
+
         G = to_networkx(
             data,
             to_undirected=True,
-            node_attrs=["x"],
-            edge_attrs=["edge_attr"] if "edge_attr" in data else None,
+            node_attrs=["x"] if "x" in data else None,
+            edge_attrs=[edge_attr] if edge_attr is not None else edge_attr,
         )
 
-        # Process edge attributes if needed
-        if "edge_attr" in data and self.use_edge_information:
-            attributes = nx.get_edge_attributes(G, "edge_attr")
-
+        # If using edge information and edge_attr is present, set weights from edge_attr
+        if (
+            self.use_edge_information
+            and isinstance(edge_attr, str)
+            and edge_attr in data
+        ):
+            attributes = nx.get_edge_attributes(G, edge_attr)
             # Convert multi-dimensional edge attributes to scalars using norm
-            attributes.update(
-                {
-                    edge: np.linalg.norm(attribute)
-                    for edge, attribute in attributes.items()
-                }
+            attributes = {
+                edge: np.linalg.norm(attribute)
+                for edge, attribute in attributes.items()
+            }
+            nx.set_edge_attributes(G, attributes, "weight")
+        else:
+            # Always set all edge weights to 1.0 if not using edge information
+            nx.set_edge_attributes(
+                G, {edge: 1.0 for edge in G.edges()}, "weight"
             )
-
-            nx.set_edge_attributes(G, attributes, "edge_attr")
 
         return G
 
@@ -240,21 +250,16 @@ class ComplementarityFunctor(torch.nn.Module):
         # Extract node features
         X = np.asarray(list(nx.get_node_attributes(G, "x").values()))
 
-        # Validate input
+        # Validate input: treat empty graph or empty feature matrix the same
         empty_graph = G.number_of_edges() == 0
-
         if len(X) == 0:
             warnings.warn("Feature matrix X is empty, skipping graph.")
-            return self.comparator.invalid_data
-
-        if G.number_of_nodes() == 0:
-            warnings.warn("Graph G has no nodes, skipping it.")
-            return self.comparator.invalid_data
+            return self.invalid_data
 
         # Handle connected components
         metric_spaces = self._lift_metrics(G, X, empty_graph)
         if metric_spaces is None:
-            return self.comparator.invalid_data
+            return self.invalid_data
 
         D_X, D_G, sizes = metric_spaces
 
@@ -379,8 +384,7 @@ class ComplementarityFunctor(torch.nn.Module):
         """
         # Compute complementarity scores for each component
         return [
-            self.comparator(d_x, d_g)["complementarity"]
-            for d_x, d_g in zip(D_X, D_G)
+            self.comparator(d_x, d_g)["score"] for d_x, d_g in zip(D_X, D_G)
         ]
 
     def _aggregate(self, scores, sizes):
@@ -409,3 +413,22 @@ class ComplementarityFunctor(torch.nn.Module):
                 return np.mean(scores)
             else:
                 return np.nan
+
+    @property
+    def invalid_data(self):
+        """
+        Return a dictionary with NaN score and other standardized fields.
+
+        Returns
+        -------
+        dict
+            Dictionary with keys:
+            - score: NaN (invalid data)
+            - pvalue: None
+            - pvalue_adjusted: None
+            - significant: None
+            - method: The norm used
+        """
+        return {
+            "complementarity": np.nan,
+        }
