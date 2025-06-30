@@ -145,7 +145,12 @@ class MatrixNormComparator:
         }
 
 
-def L11MatrixNormComparator():
+#  ╭──────────────────────────────────────────────────────────╮
+#  │ Factory Functions                                        |
+#  ╰──────────────────────────────────────────────────────────╯
+
+
+def L11MatrixNormComparator(**kwargs):
     """
     Factory function that returns a MatrixNormComparator with L11 norm.
 
@@ -154,10 +159,10 @@ def L11MatrixNormComparator():
     MatrixNormComparator
         A comparator configured to use the L11 norm
     """
-    return MatrixNormComparator(norm="L11")
+    return MatrixNormComparator(norm="L11", **kwargs)
 
 
-def FrobeniusMatrixNormComparator():
+def FrobeniusMatrixNormComparator(**kwargs):
     """
     Factory function that returns a MatrixNormComparator with Frobenius norm.
 
@@ -166,4 +171,4 @@ def FrobeniusMatrixNormComparator():
     MatrixNormComparator
         A comparator configured to use the Frobenius norm
     """
-    return MatrixNormComparator(norm="frobenius")
+    return MatrixNormComparator(norm="frobenius", **kwargs)
