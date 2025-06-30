@@ -4,7 +4,6 @@ from rings.complementarity.metrics import lift_attributes
 from rings.complementarity.metrics import lift_graph
 from rings.complementarity.utils import maybe_normalize_diameter
 
-
 from torch_geometric.utils import to_networkx
 
 import numpy as np
@@ -29,20 +28,18 @@ class ComplementarityFunctor(torch.nn.Module):
 
     Parameters
     ----------
-    torch.nn.Module : torch.nn.Module
-        A PyTorch module containing the graphs for which to compute mode complementarity.
-    Attributes
-    ----------
-    feature_metric: str
-        The metric to be used for lifting node features into a metric space, e.g. "euclidean". See `metrics.py`.
-    graph_metric: str
-        The metric to be used for lifting the graph into a metric space, e.g. "shortest_path_distance". See `metrics.py`.
-    n_jobs: int
-        The number of jobs to run in parallel for lifting the metric spaces.
-    _use_edge_information : bool
-        Whether to use edge information when lifting the graph into a metric space. Default is False. Change value using setter function.
-    comparator : object
-        An instance of a comparator class (e.g. MatrixNormComparator) that will be used to compare the lifted metric spaces.
+    feature_metric : callable
+        The metric function used to compute distances between node features.
+    graph_metric : callable
+        The metric function used to compute distances in the graph structure.
+    comparator : class
+        A comparator class that implements a __call__ method to compare metric spaces.
+    n_jobs : int, default=1
+        Number of jobs to run in parallel. If 1, no parallelism is used.
+    use_edge_information : bool, default=False
+        Whether to use edge attributes in graph metric computation.
+    normalize_diameters : bool, default=True
+        Whether to normalize the diameters of metric spaces before comparison.
     **kwargs : dict
         Additional arguments passed to the comparator and metric functions.
 
@@ -102,22 +99,6 @@ class ComplementarityFunctor(torch.nn.Module):
         edge_attr: Optional[str] = None,
         **kwargs,
     ):
-        """Initialize the ComplementarityFunctor.
-        Parameters
-        ----------
-        feature_metric: str
-            The metric to be used for lifting node features into a metric space, e.g. "euclidean". See `metrics.py`.
-        graph_metric: str
-            The metric to be used for lifting the graph into a metric space, e.g. "shortest_path_distance". See `metrics.py`.
-        comparator: class
-            The comparator class to be used for comparing the lifted metric spaces, see `comparator.py`.
-        n_jobs: int
-            The number of jobs to run in parallel for lifting the metric spaces.
-        **kwargs : dict
-            Keyword arguments to specify the norm to be used when initializing the comparator. Supported norms are:
-            - "L11" (default)
-            - "frobenius"
-        """
         torch.nn.Module.__init__(self)
 
         self.n_jobs = n_jobs
@@ -137,42 +118,71 @@ class ComplementarityFunctor(torch.nn.Module):
         # Set up the comparator
         self.comparator = comparator(n_jobs=n_jobs, **self.kwargs)
 
-    @property
-    def use_edge_information(self):
-        return self._use_edge_information
+    def forward(
+        self,
+        batch,
+        as_dataframe: bool = True,
+    ) -> Union[Dict[str, Any], pd.DataFrame, List[Dict[str, Any]]]:
+        """
+        Compute complementarity for a batch of graphs in PyTorch Geometric format.
 
-    @use_edge_information.setter
-    def use_edge_information(self, value):
-        self._use_edge_information = value
-        if value:
-            self.kwargs["weight"] = "edge_attr"
-        elif "weight" in self.kwargs and self.kwargs["weight"] == "edge_attr":
-            del self.kwargs["weight"]
+        Parameters
+        ----------
+        batch : list
+            A batch of graphs in PyTorch Geometric format.
+        as_dataframe : bool, default=True
+            If True, return results as a pandas DataFrame, otherwise as a dictionary
+            with tensor values or a list of dictionaries.
 
-    def forward(self, batch):
-        """Compute mode complementarity for a batch of graphs in `pytorch-geometric` format, parallelizing based on n_jobs attribute.
         Returns
         -------
-        dict
-            A dictionary containing the complementarity scores for each graph in the batch, along with any additional optional information (dictated by comparator function).
+        Union[Dict[str, Any], pd.DataFrame, List[Dict[str, Any]]]
+            Results of complementarity computation for each graph in the batch.
+            If as_dataframe=True, returns a pandas DataFrame.
+            Otherwise, returns either a dictionary with tensor values or a list of dictionaries.
+
+        Examples
+        --------
+        >>> from rings.complementarity.comparator import MatrixNormComparator
+        >>> import torch_geometric.datasets as datasets
+        >>> dataset = datasets.TUDataset(root='/tmp/ENZYMES', name='ENZYMES')
+        >>> functor = ComplementarityFunctor(
+        ...     feature_metric=lambda x, y: np.linalg.norm(x - y),
+        ...     graph_metric=lambda x, y: abs(x - y),
+        ...     comparator=MatrixNormComparator,
+        ...     n_jobs=4,
+        ...     normalize_diameters=True
+        ... )
+        >>> # Get first 5 graphs as a batch
+        >>> batch = [dataset[i] for i in range(5)]
+        >>> results = functor.forward(batch)
+        >>> print(results)
         """
+        batch_size = len(batch)
 
-        # Parallelize the forward pass for each graph in the batch (i.e. run _forward() on each graph in the batch).
-        outputs = joblib.Parallel(n_jobs=self.n_jobs)(
-            joblib.delayed(self._forward)(batch[i]) for i in range(batch_size)
-        )
+        # Process batch in parallel or sequentially
+        if self.n_jobs > 1 and batch_size > 1:
+            outputs = joblib.Parallel(n_jobs=self.n_jobs)(
+                joblib.delayed(self._process_single)(batch[i])
+                for i in range(batch_size)
+            )
+        else:
+            outputs = [
+                self._process_single(batch[i]) for i in range(batch_size)
+            ]
 
-        # Extracts "complementarity" from each dictionary in outputs and puts them all into a tensor.
-        # This attribute is guaranteed to be available in all functors, and we can always convert it to a tensor.
+        # Convert to DataFrame if requested
+        if as_dataframe:
+            return pd.DataFrame(outputs)
+
+        # Otherwise, return as tensor dictionary or list
         complementarity_scores = torch.as_tensor(
             list(map(operator.itemgetter("complementarity"), outputs)),
             dtype=torch.float,
         )
 
-        # Adding tensor of complementarity scores to the result dictionary.
         result = {"complementarity": complementarity_scores}
 
-        # Storing values that are not "complementarity" in the result dictionary.
         if len(outputs) > 0:
             other_keys = list(outputs[0].keys())
             if "complementarity" in other_keys:
