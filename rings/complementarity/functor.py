@@ -22,7 +22,9 @@ class ComplementarityFunctor(torch.nn.Module):
     A functor for computing complementarity between graph structure and node features.
 
     This class computes complementarity by comparing the metric spaces derived from
-    graph structure and node features using a specified comparator.
+    graph structure and node features using a specified comparator. It quantifies
+    how well node features align with the graph structure, with lower values indicating
+    stronger alignment.
 
     Parameters
     ----------
@@ -40,6 +42,50 @@ class ComplementarityFunctor(torch.nn.Module):
         Whether to normalize the diameters of metric spaces before comparison.
     **kwargs : dict
         Additional arguments passed to the comparator and metric functions.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import torch
+    >>> from torch_geometric.data import Data
+    >>> from rings.complementarity.comparator import MatrixNormComparator
+    >>> from rings.complementarity.metrics import standard_feature_metrics, shortest_path_distance
+    >>>
+    >>> # Create a simple graph where node features correspond to positions in the graph
+    >>> # A path graph: 0 -- 1 -- 2 -- 3 with features encoding their positions
+    >>> edge_index = torch.tensor([[0, 1, 1, 2, 2, 3], [1, 0, 2, 1, 3, 2]], dtype=torch.long)
+    >>> # Node features encode positions: node 0 is at position 0, node 1 at position 1, etc.
+    >>> x = torch.tensor([[0], [1], [2], [3]], dtype=torch.float)
+    >>> data = Data(x=x, edge_index=edge_index)
+    >>>
+    >>> # Create functor with simple metrics
+    >>> functor = ComplementarityFunctor(
+    ...     feature_metric='euclidean',  # Use Euclidean distance for features
+    ...     graph_metric='shortest_path_distance',  # Use shortest path for graph
+    ...     comparator=MatrixNormComparator,  # Compare using matrix norm
+    ...     n_jobs=1,
+    ...     normalize_diameters=True,  # Normalize distances for fair comparison
+    ... )
+    >>>
+    >>> # Compute complementarity for the graph
+    >>> result = functor([data])
+    >>> print(f"Complementarity score: {result['complementarity'].item():.4f}")
+    Complementarity score: 0.0000
+    >>>
+    >>> # The score is 0, indicating perfect alignment between features and structure
+    >>> # (node features perfectly correspond to their positions in the path)
+    >>>
+    >>> # Now create a graph with misaligned features
+    >>> x_misaligned = torch.tensor([[3], [1], [2], [0]], dtype=torch.float)  # Swap 0 and 3
+    >>> data_misaligned = Data(x=x_misaligned, edge_index=edge_index)
+    >>>
+    >>> # Compute complementarity for the misaligned graph
+    >>> result = functor([data_misaligned])
+    >>> print(f"Complementarity score: {result['complementarity'].item():.4f}")
+    Complementarity score: 0.5000
+    >>>
+    >>> # The score is higher, indicating weaker alignment between features and structure
+    >>> # (node features no longer match their positions in the path)
     """
 
     def __init__(

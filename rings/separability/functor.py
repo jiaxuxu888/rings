@@ -9,20 +9,44 @@ class SeparabilityFunctor:
     """
     A functor for computing separability between multiple distributions.
 
-    This class computes all pairwise comparisons between distributions,
-    applies Bonferroni correction, and returns structured results.
+    This class computes all pairwise statistical comparisons between distributions,
+    applies Bonferroni correction for multiple testing, and returns structured results.
+    It's designed to test whether different graph perturbations lead to statistically
+    significant differences in model performance or metrics.
 
     Parameters
     ----------
-    comparator : object
-        An instance of a comparator class (e.g., KSComparator, WilcoxonComparator)
-        that implements a compare() method.
+    comparator : callable
+        A comparator class (e.g., KSComparator, WilcoxonComparator)
+        that implements a __call__ method for comparing two distributions.
     n_jobs : int, default=1
         Number of jobs to run in parallel. If 1, no parallelism is used.
     alpha : float, default=0.01
         Family-wise significance level for hypothesis testing.
+        After Bonferroni correction, a p-value less than alpha/num_tests
+        is considered significant.
     **kwargs : dict
         Additional arguments passed to the comparator.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from rings.separability.functor import SeparabilityFunctor
+    >>> from rings.separability.comparator import KSComparator
+    >>>
+    >>> # Create distributions to compare
+    >>> distributions = {
+    ...     "Original": np.random.normal(0.8, 0.1, 30),  # High performance
+    ...     "CompleteFeatures": np.random.normal(0.5, 0.1, 30),  # Low performance
+    ...     "EmptyGraph": np.random.normal(0.5, 0.1, 30)  # Low performance
+    ... }
+    >>>
+    >>> # Create functor and run analysis
+    >>> functor = SeparabilityFunctor(comparator=KSComparator(), alpha=0.05)
+    >>> results = functor.forward(distributions)
+    >>>
+    >>> # Results contain pairwise comparisons with significance tests
+    >>> print(results[['mode1', 'mode2', 'score', 'pvalue_adjusted', 'significant']])
     """
 
     def __init__(

@@ -8,13 +8,39 @@ class KSComparator:
     """
     Comparator that uses the Kolmogorov-Smirnov test to compare two distributions.
 
-    Uses permutation testing with KS statistic to determine if two samples
-    come from the same distribution.
+    This class implements a statistical test based on the Kolmogorov-Smirnov (KS)
+    statistic to determine if two samples come from the same distribution. It uses
+    permutation testing to empirically determine significance, making it suitable
+    for small sample sizes where asymptotic approximations may not be reliable.
 
     Methods
     -------
-    __call__(x, y, **kwargs)
+    __call__(x, y, n_permutations=10_000, alpha=0.01, n_hypotheses=1, random_state=42, **kwargs)
         Compare two samples using Kolmogorov-Smirnov test with permutation testing.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from rings.separability.comparator import KSComparator
+    >>>
+    >>> # Create two samples from different distributions
+    >>> x = np.random.normal(0, 1, 20)  # Standard normal
+    >>> y = np.random.normal(1, 1, 20)  # Shifted normal
+    >>>
+    >>> # Compare distributions with KS test
+    >>> comparator = KSComparator()
+    >>> result = comparator(x, y, n_permutations=1000, alpha=0.05)
+    >>>
+    >>> # Interpret results
+    >>> print(f"KS statistic: {result['score']}")
+    >>> print(f"p-value: {result['pvalue']}")
+    >>> print(f"Significant: {result['significant']}")
+
+    Notes
+    -----
+    The Kolmogorov-Smirnov test measures the maximum difference between the
+    empirical cumulative distribution functions of two samples. It is sensitive
+    to differences in both location and shape of distributions.
     """
 
     def __call__(
@@ -129,13 +155,43 @@ class WilcoxonComparator:
     """
     Comparator that uses the Wilcoxon signed-rank test to compare two distributions.
 
-    Uses permutation testing with Wilcoxon statistic to determine if
-    two samples come from the same distribution.
+    This class implements a statistical test based on the Wilcoxon signed-rank
+    test for paired samples. It uses permutation testing to empirically determine
+    significance, making it suitable for small sample sizes or when assumptions
+    for parametric tests are not met.
 
     Methods
     -------
-    __call__(x, y, **kwargs)
+    __call__(x, y, n_permutations=10_000, alpha=0.01, n_hypotheses=1, random_state=42, **kwargs)
         Compare two samples using Wilcoxon signed-rank test with permutation testing.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from rings.separability.comparator import WilcoxonComparator
+    >>>
+    >>> # Create paired samples (must be equal length)
+    >>> np.random.seed(42)
+    >>> x = np.random.normal(0, 1, 20)
+    >>> y = x + np.random.normal(0.5, 0.5, 20)  # Same as x with shift + noise
+    >>>
+    >>> # Compare distributions
+    >>> comparator = WilcoxonComparator()
+    >>> result = comparator(x, y, n_permutations=1000, alpha=0.05)
+    >>>
+    >>> # Interpret results
+    >>> print(f"Wilcoxon statistic: {result['score']}")
+    >>> print(f"p-value: {result['pvalue']}")
+    >>> print(f"Significant: {result['significant']}")
+
+    Notes
+    -----
+    The Wilcoxon signed-rank test compares paired samples by ranking the
+    absolute differences between pairs and summing the ranks of positive
+    differences. Unlike the t-test, it does not require the differences
+    to be normally distributed.
+
+    This implementation requires paired samples of equal length.
     """
 
     def __call__(
