@@ -13,11 +13,18 @@ RINGS: Relevant Information in Node Features and Graph Structure documentation
    
    In the coming weeks, we’ll be releasing updates, architectural notes, and implementation details via a series of pull requests. You're welcome to follow along, open issues, or suggest improvements!
 
+|
+
+.. image:: _static/rings-logo.svg
+   :width: 150
+   :height: 150
+   :alt: RINGS logo
+   :align: left
+
 
 Welcome to the official repository for the 2025 ICML paper, `No Metric to Rule Them All: Toward Principled Evaluations of Graph-Learning Datasets <https://doi.org/10.48550/arXiv.2502.02379>`__, which introduces RINGS: a perturbation framework for attributed graphs, designed to facilitate more principled evaluations of graph learning benchmarks from first principles.
 
-
-
+|
 💍 Framework Overview
 -----------------------
 
