@@ -70,7 +70,7 @@ source .venv/bin/activate
 
 ---
 
-## 🧹 Key Components
+## 🔑 Key Components
 
 ### Mode Perturbations
 
