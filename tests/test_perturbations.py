@@ -220,6 +220,27 @@ class TestPerturbations:
         # Check that edge attributes are removed
         assert transformed_data.edge_attr is None
 
+    def test_random_graph_transform_documentation_example(self):
+        """Test RandomGraph transform using the example from documentation."""
+        # Create a simple graph as shown in documentation
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+        data = Data(edge_index=edge_index, num_nodes=4)
+
+        # Example from documentation: Random graph with same number of edges
+        torch.manual_seed(42)  # For reproducibility
+        transform = RandomGraph()
+        transformed_data = transform(data.clone())
+
+        # Should have same number of edges but different structure
+        assert transformed_data.edge_index.shape[1] == data.edge_index.shape[1]
+        assert not torch.equal(transformed_data.edge_index, data.edge_index)
+
+        # Verify the transform maintains other properties
+        assert transformed_data.num_nodes == data.num_nodes
+        assert transformed_data.edge_attr is None
+
     def test_random_connected_graph_transform_shuffle(self):
         """Test RandomConnectedGraph transform with shuffle=True."""
         transform = RandomConnectedGraph(shuffle=True)
