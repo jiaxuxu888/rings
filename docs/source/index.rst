@@ -169,7 +169,7 @@ If you use RINGS in your research, please cite our paper:
 .. code-block:: bibtex
 
    @inproceedings{
-   coupette2025,
+   coupette2025metric,
    title={No Metric to Rule Them All: Toward Principled Evaluations of Graph-Learning Datasets},
    author={Corinna Coupette and Jeremy Wayland and Emily Simons and Bastian Rieck},
    booktitle={Forty-second International Conference on Machine Learning},
