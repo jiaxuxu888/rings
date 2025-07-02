@@ -14,8 +14,7 @@ For more options:
 
 
 Have your own performance distributions and want to execute a separability analysis?
-Replace the distribution in `create_sample_distributions` function with your own and run the script:
-    python -m examples.separability --comparator ks --alpha 0.01
+Replace the distribution in `create_sample_distributions` function with your own and run the script.
 """
 
 import numpy as np
