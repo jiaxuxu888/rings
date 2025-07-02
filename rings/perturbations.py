@@ -4,7 +4,7 @@ import torch
 from torch_geometric.transforms import BaseTransform
 from torch_geometric.utils import dense_to_sparse
 
-from rings.utils import Shuffle, is_connected
+from rings.utils import Shuffle, is_connected, ensure_no_self_loops
 
 
 class Original(BaseTransform):
@@ -537,9 +537,10 @@ class RandomGraph(BaseTransform):
             0, num_nodes, (num_edges,), device="cpu", generator=self.generator
         )
 
-        # Remove self-loops
-        mask = row != col
-        row, col = row[mask], col[mask]
+        # Ensure no self-loops
+        row, col = ensure_no_self_loops(
+            row, col, num_nodes, generator=self.generator
+        )
 
         # Create sparse adjacency matrix
         edge_index = torch.stack([row, col], dim=0).to(data.edge_index.device)
