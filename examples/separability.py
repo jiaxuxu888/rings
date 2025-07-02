@@ -6,11 +6,11 @@ This script demonstrates how to:
 2. Apply the SeparabilityFunctor to compare multiple distributions
 3. Visualize and interpret separability results
 
-Usage:
-    python separability.py --comparator ks --alpha 0.01
+Usage (from root directory):
+    python -m examples.separability --comparator ks --alpha 0.01
 
 For more options:
-    python separability.py --help
+    python -m examples.separability --help
 """
 
 import numpy as np
@@ -111,9 +111,7 @@ def basic_comparator_example(seed=42):
     print(f"   - Significant: {wc_result['significant']}")
 
 
-def run_separability_analysis(
-    comparator_name, alpha, n_permutations, n_jobs, seed
-):
+def run_separability_analysis(comparator_name, alpha, n_permutations, n_jobs, seed):
     """
     Run the separability analysis using the specified comparator.
 
@@ -220,7 +218,15 @@ def print_results_summary(results_df, results_list, comparator_name):
 
 
 def main():
-    """Main function to run the separability analysis."""
+    """Main function to run the separability analysis.
+    User inputs are handled via command line arguments:
+        --comparator: Name of the comparator to use (default: ks)
+        --alpha: Significance level for statistical tests (default: 0.01)
+        --seed: Random seed for reproducibility (default: 42)
+        --permutations: Number of permutations for the test (default: 1000)
+        --n-jobs: Number of parallel jobs (-1 for all cores, default: 1)
+        --skip-basic: Include --skip-basic argument to skip basic example, otherwise included by default
+    """
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Compute separability metrics for distributions"

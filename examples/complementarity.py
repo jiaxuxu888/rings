@@ -6,11 +6,11 @@ This script demonstrates how to:
 2. Apply various RINGS perturbations to the graph data
 3. Compute complementarity metrics
 
-Usage:
-    python complementarity.py --dataset MUTAG --perturbation original
+Usage (from root directory):
+    python -m examples.complementarity --dataset MUTAG --perturbation original
 
 For more options:
-    python complementarity.py --help
+    python -m examples.complementarity --help
 """
 
 import numpy as np
@@ -152,7 +152,15 @@ def compute_complementarity(dataloader, functor):
 
 
 def main():
-    """Main function to run the complementarity analysis."""
+    """Main function to run the complementarity analysis.
+
+    User inputs are handled via command line arguments:
+        --perturbation: "Perturbation to apply to the dataset (default: original)"
+        --dataset: "Name of the TU dataset to use (default: MUTAG)"
+        --seed: "Random seed for reproducibility (default: 42)"
+        --batch-size: "Batch size for dataloader (default: 32)"
+        --n-jobs: "Number of parallel jobs (-1 for all cores, default: 1)"
+    """
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Compute complementarity metrics for graph datasets"
