@@ -174,23 +174,28 @@ The script outputs complementarity statistics that measure how well node feature
    perturbations
    utils
 
+.. toctree::
+   :maxdepth: 2
+   :caption: 🔑 Performance Separability
+
+   separability/comparator
+   separability/functor
 
 .. toctree::
    :maxdepth: 2
-   :caption: -> Mode Complementarity
+   :caption: 🔑 Mode Complementarity
 
    complementarity/comparator
    complementarity/functor
    complementarity/metrics
    complementarity/utils
 
-
 .. toctree::
    :maxdepth: 2
-   :caption: -> Performance Separability
+   :caption: 🔍 Example Scripts
 
-   separability/comparator
-   separability/functor
+   examples/complementarity
+   examples/separability
 
 
 📚 Citation
