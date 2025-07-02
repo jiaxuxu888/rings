@@ -168,8 +168,11 @@ class Shuffle(BaseTransform):
             shuffled_target_nodes = perm[target_nodes]
 
             # Ensure the original number of edges is preserved
-            source_nodes, shuffled_target_nodes = self._ensure_no_self_loops(
-                source_nodes, shuffled_target_nodes, num_nodes
+            source_nodes, shuffled_target_nodes = ensure_no_self_loops(
+                source_nodes,
+                shuffled_target_nodes,
+                num_nodes,
+                generator=self.generator,
             )
             assert shuffled_target_nodes.size() == target_nodes.size()
             # Update edge_index with the shuffled edges
@@ -178,66 +181,6 @@ class Shuffle(BaseTransform):
             )
 
         return data
-
-    def _ensure_no_self_loops(self, source_nodes, target_nodes, num_nodes):
-        """
-        Ensure no self-loops exist in the shuffled edges.
-
-        If any self-loops are detected after shuffling, they are replaced with random
-        edges (by assigning a random target node) to maintain the original number of edges.
-
-        Parameters
-        ----------
-        source_nodes : torch.Tensor
-            Source nodes of the edges.
-        target_nodes : torch.Tensor
-            Target nodes of the edges.
-        num_nodes : int
-            Number of nodes in the graph.
-
-        Returns
-        -------
-        tuple of torch.Tensor
-            Updated (source_nodes, target_nodes) without self-loops.
-
-        Notes
-        -----
-        This method iteratively replaces target nodes that would create self-loops
-        until all self-loops are eliminated. The source nodes are kept intact.
-        """
-        # Identify self-loops
-        self_loop_mask = source_nodes == target_nodes
-        num_self_loops = self_loop_mask.sum().item()
-        if num_self_loops > 0:
-            random_target_nodes = torch.randint(
-                0,
-                num_nodes,
-                (num_self_loops,),
-                device=target_nodes.device,
-                generator=self.generator,
-            )
-
-            # Generate new target nodes ensuring they're not equal to the source nodes to avoid creating self-loops
-            valid_targets_mask = (
-                random_target_nodes != source_nodes[self_loop_mask]
-            )
-            while not valid_targets_mask.all():
-                invalid_indices = ~valid_targets_mask
-                random_target_nodes[invalid_indices] = torch.randint(
-                    0,
-                    num_nodes,
-                    (invalid_indices.sum().item(),),
-                    device=target_nodes.device,
-                    generator=self.generator,
-                )
-                valid_targets_mask = (
-                    random_target_nodes != source_nodes[self_loop_mask]
-                )
-
-            # Replace only target nodes to keep the source nodes intact
-            target_nodes[self_loop_mask] = random_target_nodes
-
-        return source_nodes, target_nodes
 
 
 #  ╭──────────────────────────────────────────────────────────╮
@@ -291,3 +234,62 @@ def is_connected(data):
     G = to_networkx(data, to_undirected=True)
 
     return nx.is_connected(G)
+
+
+def ensure_no_self_loops(source_nodes, target_nodes, num_nodes, generator):
+    """
+    Ensure no self-loops exist in the shuffled edges.
+
+    If any self-loops are detected after shuffling, they are replaced with random
+    edges (by assigning a random target node) to maintain the original number of edges.
+
+    Parameters
+    ----------
+    source_nodes : torch.Tensor
+        Source nodes of the edges.
+    target_nodes : torch.Tensor
+        Target nodes of the edges.
+    num_nodes : int
+        Number of nodes in the graph.
+
+    Returns
+    -------
+    tuple of torch.Tensor
+        Updated (source_nodes, target_nodes) without self-loops.
+
+    Notes
+    -----
+    This method iteratively replaces target nodes that would create self-loops
+    until all self-loops are eliminated. The source nodes are kept intact.
+    """
+    # Identify self-loops
+    self_loop_mask = source_nodes == target_nodes
+    num_self_loops = self_loop_mask.sum().item()
+    if num_self_loops > 0:
+        random_target_nodes = torch.randint(
+            0,
+            num_nodes,
+            (num_self_loops,),
+            device=target_nodes.device,
+            generator=generator,
+        )
+
+        # Generate new target nodes ensuring they're not equal to the source nodes to avoid creating self-loops
+        valid_targets_mask = random_target_nodes != source_nodes[self_loop_mask]
+        while not valid_targets_mask.all():
+            invalid_indices = ~valid_targets_mask
+            random_target_nodes[invalid_indices] = torch.randint(
+                0,
+                num_nodes,
+                (invalid_indices.sum().item(),),
+                device=target_nodes.device,
+                generator=generator,
+            )
+            valid_targets_mask = (
+                random_target_nodes != source_nodes[self_loop_mask]
+            )
+
+        # Replace only target nodes to keep the source nodes intact
+        target_nodes[self_loop_mask] = random_target_nodes
+
+    return source_nodes, target_nodes
