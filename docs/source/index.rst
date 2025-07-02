@@ -22,7 +22,9 @@ RINGS: Relevant Information in Node Features and Graph Structure documentation
    :align: left
 
 
-Welcome to the official repository for the 2025 ICML paper, `No Metric to Rule Them All: Toward Principled Evaluations of Graph-Learning Datasets <https://doi.org/10.48550/arXiv.2502.02379>`__, which introduces RINGS: a perturbation framework for attributed graphs, designed to facilitate more principled evaluations of graph learning benchmarks from first principles.
+Welcome to the official repository for the 2025 ICML paper, `No Metric to Rule Them All: Toward Principled Evaluations of Graph-Learning Datasets <https://doi.org/10.48550/arXiv.2502.02379>`__, which introduces RINGS: a perturbation framework for attributed graphs, designed to facilitate more principled evaluations of graph learning benchmarks from first principles. 
+
+The full repo is available `here <https://github.com/aidos-lab/rings>`__.
 
 |
 
