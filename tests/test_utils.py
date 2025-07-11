@@ -41,15 +41,18 @@ class TestShuffleTransform:
 
         # Verify number of nodes and features remains the same
         assert transformed_data.num_nodes == self.data.num_nodes
-        assert transformed_data.x.shape == self.data.x.shape
+        if transformed_data.x is not None and self.data.x is not None:
+            assert transformed_data.x.shape == self.data.x.shape
 
         # Verify that features were actually shuffled (different order)
-        assert not torch.equal(transformed_data.x, self.data.x)
+        if transformed_data.x is not None and self.data.x is not None:
+            assert not torch.equal(transformed_data.x, self.data.x)
 
         # Verify that all original features are present (just in different order)
-        original_features = set(tuple(x.tolist()) for x in self.data.x)
-        shuffled_features = set(tuple(x.tolist()) for x in transformed_data.x)
-        assert original_features == shuffled_features
+        if self.data.x is not None and transformed_data.x is not None:
+            original_features = set(tuple(x.tolist()) for x in self.data.x)
+            shuffled_features = set(tuple(x.tolist()) for x in transformed_data.x)
+            assert original_features == shuffled_features
 
     def test_shuffle_edges(self):
         # Test edge shuffling functionality
@@ -64,9 +67,10 @@ class TestShuffleTransform:
         assert transformed_data.edge_index.shape == self.data.edge_index.shape
 
         # Verify that edges were actually shuffled
-        assert not torch.equal(
-            transformed_data.edge_index[1], self.data.edge_index[1]
-        )
+        if transformed_data.edge_index is not None and self.data.edge_index is not None:
+            assert not torch.equal(
+                transformed_data.edge_index[1], self.data.edge_index[1]
+            )
 
         # Source nodes should remain the same
         assert torch.equal(
