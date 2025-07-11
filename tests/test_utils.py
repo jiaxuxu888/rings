@@ -2,6 +2,12 @@ import pytest
 import torch
 from torch_geometric.data import Data
 
+import sys
+from pathlib import Path
+
+# Add parent directory to Python's search paths
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 from rings.utils import Shuffle, is_connected
 
 
